@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(uuid())
+  username        String   @unique
+  password        String
+  role            Role
+  email           String?
+  phone           String?
+  school_id       String?
+  managed_schools String[]
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  applications       Application[] @relation("StudentApplications")
+  reviewedApplications Application[] @relation("ReviewerApplications")
+  reviews             Review[]
+  approvals           Approval[]
+
+  @@map("users")
+}
+
+enum Role {
+  student
+  reviewer
+  approver
+  school_admin
+  analyst
+  admin
+}
+
+model School {
+  id          String   @id @default(uuid())
+  name        String
+  country     String
+  city        String
+  logo        String?
+  description String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  majors      Major[]
+
+  @@map("schools")
+}
+
+model Major {
+  id           String   @id @default(uuid())
+  school_id    String
+  name         String
+  quota        Int
+  enrolled     Int      @default(0)
+  tuition      Decimal
+  requirements String?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  school        School        @relation(fields: [school_id], references: [id])
+  applications  Application[]
+
+  @@map("majors")
+}
+
+model Application {
+  id           String            @id @default(uuid())
+  student_id   String
+  major_id     String
+  status       ApplicationStatus
+  reviewer_id   String?
+  applied_at   DateTime?
+  reviewed_at  DateTime?
+  approved_at  DateTime?
+  deadline     DateTime?
+  created_at   DateTime         @default(now())
+  updated_at   DateTime         @updatedAt
+
+  student    User       @relation("StudentApplications", fields: [student_id], references: [id])
+  major      Major      @relation(fields: [major_id], references: [id])
+  reviewer   User?      @relation("ReviewerApplications", fields: [reviewer_id], references: [id])
+  reviews    Review[]
+  approvals  Approval[]
+  documents  Document[]
+
+  @@map("applications")
+}
+
+enum ApplicationStatus {
+  draft
+  submitted
+  pending_supplement
+  approved
+  completed
+  rejected
+  expired
+}
+
+model Review {
+  id             String        @id @default(uuid())
+  application_id String
+  reviewer_id    String
+  action         ReviewAction
+  comment        String?
+  created_at     DateTime      @default(now())
+
+  application Application @relation(fields: [application_id], references: [id])
+  reviewer    User        @relation(fields: [reviewer_id], references: [id])
+
+  @@map("reviews")
+}
+
+enum ReviewAction {
+  request_resubmit
+  approve
+  reject
+}
+
+model Approval {
+  id             String   @id @default(uuid())
+  application_id String
+  approver_id    String
+  notes          String?
+  created_at     DateTime @default(now())
+
+  application Application @relation(fields: [application_id], references: [id])
+  approver    User        @relation(fields: [approver_id], references: [id])
+
+  @@map("approvals")
+}
+
+model Document {
+  id             String         @id @default(uuid())
+  application_id String
+  name           String
+  url            String
+  size           Int
+  mime_type      String
+  status         DocumentStatus
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
+
+  application Application @relation(fields: [application_id], references: [id])
+
+  @@map("documents")
+}
+
+enum DocumentStatus {
+  uploading
+  uploaded
+  invalid_format
+  approved
+  rejected
+}
