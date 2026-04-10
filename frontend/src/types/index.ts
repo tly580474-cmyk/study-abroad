@@ -46,6 +46,7 @@ export interface Major {
   requirements?: string;
   created_at: string;
   updated_at: string;
+  school?: School;
 }
 
 export interface Application {

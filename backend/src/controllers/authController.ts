@@ -14,7 +14,8 @@ export const login = asyncHandler(
 
 export const register = asyncHandler(
   async (req: AuthRequest, res: Response): Promise<void> => {
-    const { username, password, role, email, phone } = RegisterSchema.parse(req.body);
+    const { username, password, email, phone } = RegisterSchema.parse(req.body);
+    const role = 'student';
     const user = await authService.register(username, password, role, email, phone);
     res.status(201).json({ success: true, data: user });
   }

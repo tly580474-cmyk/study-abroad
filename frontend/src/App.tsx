@@ -2,6 +2,13 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './components/layout/MainLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { ApplicationListPage } from './pages/ApplicationListPage';
+import { ApplicationDetailPage } from './pages/ApplicationDetailPage';
+import { ApplicationCreatePage } from './pages/ApplicationCreatePage';
+import { SchoolsPage } from './pages/SchoolsPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
+import { UsersPage } from './pages/UsersPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { useAuthStore } from './stores';
 
 function App() {
@@ -15,13 +22,15 @@ function App() {
       />
       <Route element={<MainLayout />}>
         <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/applications" element={<DashboardPage />} />
+        <Route path="/applications" element={<ApplicationListPage />} />
+        <Route path="/applications/new" element={<ApplicationCreatePage />} />
+        <Route path="/applications/:id" element={<ApplicationDetailPage />} />
         <Route path="/review" element={<DashboardPage />} />
         <Route path="/approval" element={<DashboardPage />} />
-        <Route path="/schools" element={<DashboardPage />} />
-        <Route path="/analytics" element={<DashboardPage />} />
-        <Route path="/users" element={<DashboardPage />} />
-        <Route path="/settings" element={<DashboardPage />} />
+        <Route path="/schools" element={<SchoolsPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
+        <Route path="/users" element={<UsersPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
