@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { applicationService } from '../services/applicationService';
+import { documentService } from '../services/documentService';
 import type { Application, ApplicationStatus, ReviewAction } from '../types';
 import { useAuthStore } from '../stores';
 import {
@@ -17,6 +18,11 @@ import {
   BookOpen,
   Calendar,
   MessageSquare,
+  Upload,
+  Trash2,
+  Download,
+  Paperclip,
+  Eye,
 } from 'lucide-react';
 
 const STATUS_CONFIG: Record<ApplicationStatus, { label: string; color: string; icon: React.ElementType }> = {
@@ -38,6 +44,11 @@ export function ApplicationDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [comment, setComment] = useState('');
   const [error, setError] = useState('');
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [previewData, setPreviewData] = useState<{ name: string; mimeType: string; dataUrl: string } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -50,6 +61,9 @@ export function ApplicationDetailPage() {
     try {
       const data = await applicationService.getApplicationById(id!);
       setApplication(data);
+      if (data.documents) {
+        setDocuments(data.documents);
+      }
     } catch {
       setError('加载申请详情失败');
     } finally {
@@ -93,6 +107,51 @@ export function ApplicationDetailPage() {
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !application) return;
+
+    setUploading(true);
+    try {
+      const doc = await documentService.uploadDocument(application.id, file);
+      setDocuments([...documents, doc]);
+    } catch (err: any) {
+      alert(err?.response?.data?.error || '上传失败');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteDocument = async (docId: string) => {
+    const confirmed = window.confirm('确定要删除这个文档吗？');
+    if (!confirmed) return;
+    try {
+      await documentService.deleteDocument(docId);
+      setDocuments(documents.filter(d => d.id !== docId));
+    } catch (err: any) {
+      alert(err?.response?.data?.error || '删除失败');
+    }
+  };
+
+  const handlePreview = async (docId: string) => {
+    setPreviewLoading(true);
+    try {
+      const data = await documentService.previewDocument(docId);
+      setPreviewData(data);
+    } catch (err: any) {
+      alert(err?.response?.data?.error || '预览失败');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
@@ -121,6 +180,61 @@ export function ApplicationDetailPage() {
   const StatusIcon = statusConfig.icon;
   const canReview = user?.role === 'reviewer' && application.status === 'submitted';
   const canApprove = user?.role === 'approver' && application.status === 'approved';
+  const canSubmit = user?.role === 'student' && (application.status === 'draft' || application.status === 'pending_supplement') && user?.id === application.student_id;
+  const canWithdraw = user?.role === 'student' && application.status === 'submitted' && user?.id === application.student_id;
+  const canDelete = user?.role === 'admin' || (user?.role === 'student' && application.status === 'draft' && user?.id === application.student_id);
+
+  const handleSubmitApplication = async () => {
+    if (!application) return;
+    if (documents.length === 0) {
+      alert('请先上传申请材料后再提交');
+      return;
+    }
+
+    setActionLoading(true);
+    setError('');
+    try {
+      await applicationService.submitApplication(application.id);
+      await loadApplication();
+    } catch (err: any) {
+      setError(err?.response?.data?.error || '提交申请失败');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleWithdrawApplication = async () => {
+    if (!application) return;
+    const confirmed = window.confirm('确定要撤回申请吗？撤回后可以重新提交。');
+    if (!confirmed) return;
+
+    setActionLoading(true);
+    setError('');
+    try {
+      await applicationService.withdrawApplication(application.id);
+      await loadApplication();
+    } catch (err: any) {
+      setError(err?.response?.data?.error || '撤回申请失败');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteApplication = async () => {
+    if (!application) return;
+    const confirmed = window.confirm('确定要删除此申请吗？删除后无法恢复。');
+    if (!confirmed) return;
+
+    setActionLoading(true);
+    setError('');
+    try {
+      await applicationService.deleteApplication(application.id);
+      navigate('/applications');
+    } catch (err: any) {
+      setError(err?.response?.data?.error || '删除申请失败');
+      setActionLoading(false);
+    }
+  };
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -185,6 +299,119 @@ export function ApplicationDetailPage() {
                   <div className="text-sm text-gray-700">{application.major.requirements}</div>
                 </div>
               )}
+
+              <div className="pt-4 border-t">
+                <div className="text-sm text-gray-500 mb-2">申请材料</div>
+                {documents.length === 0 ? (
+                  <p className="text-sm text-gray-400 italic">暂无材料</p>
+                ) : (
+                  <div className="space-y-2">
+                    {documents.map((doc) => (
+                      <div key={doc.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Paperclip className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                          <span className="text-sm truncate">{doc.name}</span>
+                          <span className="text-xs text-gray-400">{formatFileSize(doc.size)}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handlePreview(doc.id)}
+                            className="p-1 hover:bg-gray-200 rounded"
+                            title="预览"
+                          >
+                            <Eye className="h-4 w-4 text-gray-500" />
+                          </button>
+                          <a
+                            href={documentService.downloadDocument(doc.id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 hover:bg-gray-200 rounded"
+                          >
+                            <Download className="h-4 w-4 text-gray-500" />
+                          </a>
+                          {(user?.role === 'admin' || user?.id === application.student_id) && (
+                            <button
+                              onClick={() => handleDeleteDocument(doc.id)}
+                              className="p-1 hover:bg-gray-200 rounded"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {(user?.role === 'admin' || user?.id === application.student_id) && (
+                  <div className="mt-3">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                    >
+                      <Upload className="h-4 w-4 mr-1" />
+                      {uploading ? '上传中...' : '上传材料'}
+                    </Button>
+                  </div>
+                )}
+                {canSubmit && (
+                  <div className="mt-4 pt-4 border-t">
+                    <Button
+                      onClick={handleSubmitApplication}
+                      disabled={actionLoading || documents.length === 0}
+                      className="w-full"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      {actionLoading ? '提交中...' : (application.status === 'pending_supplement' ? '重新提交' : '提交申请')}
+                    </Button>
+                    {documents.length === 0 && (
+                      <p className="text-sm text-orange-600 mt-2 text-center">
+                        请先上传申请材料后再提交
+                      </p>
+                    )}
+                  </div>
+                )}
+                {canWithdraw && (
+                  <div className="mt-4 pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      onClick={handleWithdrawApplication}
+                      disabled={actionLoading}
+                      className="w-full"
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      {actionLoading ? '撤回中...' : '撤回申请'}
+                    </Button>
+                    <p className="text-sm text-gray-500 mt-2 text-center">
+                      撤回后可重新编辑材料后再提交
+                    </p>
+                  </div>
+                )}
+                {canDelete && (
+                  <div className="mt-4 pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      onClick={handleDeleteApplication}
+                      disabled={actionLoading}
+                      className="w-full text-red-600 border-red-300 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {actionLoading ? '删除中...' : '删除申请'}
+                    </Button>
+                    <p className="text-sm text-gray-500 mt-2 text-center">
+                      删除后无法恢复
+                    </p>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -392,6 +619,53 @@ export function ApplicationDetailPage() {
             </Card>
           )}
         </div>
+
+        {previewData && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between p-4 border-b">
+                <h3 className="font-medium truncate">{previewData.name}</h3>
+                <button
+                  onClick={() => setPreviewData(null)}
+                  className="p-1 hover:bg-gray-100 rounded"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto p-4 bg-gray-100">
+                {previewLoading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-gray-500">加载中...</div>
+                  </div>
+                ) : previewData.mimeType.startsWith('image/') ? (
+                  <img
+                    src={previewData.dataUrl}
+                    alt={previewData.name}
+                    className="max-w-full mx-auto"
+                  />
+                ) : previewData.mimeType === 'application/pdf' ? (
+                  <iframe
+                    src={previewData.dataUrl}
+                    className="w-full h-[70vh]"
+                    title={previewData.name}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                    <FileText className="h-12 w-12 mb-4" />
+                    <p>该文件类型暂不支持预览</p>
+                    <a
+                      href={`data:${previewData.mimeType};base64,${previewData.dataUrl.split(',')[1]}`}
+                      download={previewData.name}
+                      className="mt-4 text-primary-600 hover:underline"
+                    >
+                      下载文件
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

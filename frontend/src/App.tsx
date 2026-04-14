@@ -9,6 +9,11 @@ import { SchoolsPage } from './pages/SchoolsPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { UsersPage } from './pages/UsersPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { ReviewPage } from './pages/ReviewPage';
+import { ApprovalPage } from './pages/ApprovalPage';
+import { ForumPage } from './pages/ForumPage';
+import { PostDetailPage } from './pages/PostDetailPage';
+import { CreatePostPage } from './pages/CreatePostPage';
 import { useAuthStore } from './stores';
 
 function App() {
@@ -25,9 +30,12 @@ function App() {
         <Route path="/applications" element={<ApplicationListPage />} />
         <Route path="/applications/new" element={<ApplicationCreatePage />} />
         <Route path="/applications/:id" element={<ApplicationDetailPage />} />
-        <Route path="/review" element={<DashboardPage />} />
-        <Route path="/approval" element={<DashboardPage />} />
+        <Route path="/review" element={<ReviewPage />} />
+        <Route path="/approval" element={<ApprovalPage />} />
         <Route path="/schools" element={<SchoolsPage />} />
+        <Route path="/forum" element={<ForumPage />} />
+        <Route path="/forum/new" element={<CreatePostPage />} />
+        <Route path="/forum/:id" element={<PostDetailPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/settings" element={<SettingsPage />} />

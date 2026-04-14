@@ -15,6 +15,7 @@ import {
   LogOut,
   User,
   ChevronDown,
+  MessageSquare,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -27,6 +28,7 @@ const navigation: { name: string; href: string; icon: typeof LayoutDashboard; ro
   { name: '待审核', href: '/review', icon: CheckCircle, roles: ['reviewer'] },
   { name: '待批复', href: '/approval', icon: CheckCircle, roles: ['approver'] },
   { name: '学校管理', href: '/schools', icon: Building2, roles: ['school_admin', 'admin'] },
+  { name: '留学论坛', href: '/forum', icon: MessageSquare },
   { name: '数据分析', href: '/analytics', icon: BarChart3, roles: ['analyst', 'admin'] },
   { name: '用户管理', href: '/users', icon: Users, roles: ['admin'] },
   { name: '系统设置', href: '/settings', icon: Settings, roles: ['admin'] },

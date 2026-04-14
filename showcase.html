@@ -125,6 +125,7 @@
             background: linear-gradient(135deg, #00f5ff, #a855f7);
             -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
             -webkit-mask-composite: xor;
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
             mask-composite: exclude;
             border-radius: inherit;
             pointer-events: none;
@@ -268,7 +269,7 @@
                     <a href="#roles" class="nav-link text-gray-400 hover:text-white">角色权限</a>
                     <a href="#tech" class="nav-link text-gray-400 hover:text-white">技术架构</a>
                 </div>
-                <button class="btn-primary px-6 py-2.5 rounded-xl font-semibold text-titanium-900 cursor-pointer">
+                <button onclick="startServices()" class="btn-primary px-6 py-2.5 rounded-xl font-semibold text-titanium-900 cursor-pointer">
                     立即体验
                 </button>
             </div>
@@ -295,7 +296,7 @@
             </p>
 
             <div class="flex flex-col sm:flex-row items-center justify-center gap-5 mb-24 animate-fade-in-up stagger-3" style="opacity: 0; animation-fill-mode: forwards;">
-                <button class="btn-primary px-10 py-4 rounded-2xl font-bold text-lg text-titanium-900 glow-strong cursor-pointer">
+                <button onclick="startServices()" class="btn-primary px-10 py-4 rounded-2xl font-bold text-lg text-titanium-900 glow-strong cursor-pointer">
                     开始使用
                 </button>
                 <button class="glass px-10 py-4 rounded-2xl font-semibold text-lg hover:bg-white/10 transition-all cursor-pointer">
@@ -727,6 +728,12 @@
         </div>
     </footer>
 
+    <button id="back-to-top" class="fixed bottom-8 right-8 w-14 h-14 glass rounded-2xl flex items-center justify-center cursor-pointer opacity-0 pointer-events-none transition-all duration-500 z-50 glow-cyan hover:bg-cyan-400/20" aria-label="返回顶部">
+        <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path>
+        </svg>
+    </button>
+
     <script>
         const spotlight = document.getElementById('spotlight');
         let spotlightTimeout;
@@ -792,6 +799,36 @@
                 bar.style.filter = 'brightness(1)';
             });
         });
+
+        const backToTopBtn = document.getElementById('back-to-top');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 500) {
+                backToTopBtn.classList.remove('opacity-0', 'pointer-events-none');
+                backToTopBtn.classList.add('opacity-100');
+            } else {
+                backToTopBtn.classList.add('opacity-0', 'pointer-events-none');
+                backToTopBtn.classList.remove('opacity-100');
+            }
+        });
+        backToTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        function startServices() {
+            const scriptPath = 'c:\\Users\\qjmzc\\Desktop\\留学管理\\启动脚本.ps1';
+            const frontendUrl = 'http://localhost:5173';
+
+            try {
+                const wsShell = new ActiveXObject('WScript.Shell');
+                wsShell.Run('powershell.exe -ExecutionPolicy Bypass -File "' + scriptPath + '"', 1, false);
+            } catch (e) {
+                console.log('Auto-start not available, please run 启动脚本.ps1 manually');
+            }
+
+            setTimeout(() => {
+                window.location.href = frontendUrl;
+            }, 500);
+        }
     </script>
 </body>
 </html>

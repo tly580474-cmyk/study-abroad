@@ -63,9 +63,7 @@ export function ApplicationCreatePage() {
       const application = await applicationService.createApplication({
         major_id: selectedMajor,
       });
-
-      await applicationService.submitApplication(application.id);
-      navigate('/applications');
+      navigate(`/applications/${application.id}`);
     } catch (err: any) {
       setError(err?.response?.data?.error || err?.message || '创建申请失败');
     } finally {
@@ -194,7 +192,7 @@ export function ApplicationCreatePage() {
 
             <div className="flex gap-4 pt-4">
               <Button type="submit" disabled={!selectedMajor || submitting}>
-                {submitting ? '提交中...' : '提交申请'}
+                {submitting ? '创建中...' : '创建申请'}
               </Button>
               <Button
                 type="button"
@@ -203,6 +201,15 @@ export function ApplicationCreatePage() {
               >
                 取消
               </Button>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
+              <p className="font-medium mb-1">温馨提示：</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>创建申请后，需要上传申请材料才能提交</li>
+                <li>请前往申请详情页上传材料</li>
+                <li>材料上传完成后，点击"提交申请"按钮完成申请</li>
+              </ul>
             </div>
           </form>
         </CardContent>

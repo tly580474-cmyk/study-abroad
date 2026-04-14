@@ -4,6 +4,8 @@ import {
   getApplicationById,
   createApplication,
   submitApplication,
+  withdrawApplication,
+  deleteApplication,
   reviewApplication,
   approveApplication,
 } from '../controllers/applicationController.js';
@@ -18,6 +20,8 @@ router.get('/', getApplications);
 router.get('/:id', getApplicationById);
 router.post('/', authorize('student'), createApplication);
 router.post('/:id/submit', authorize('student'), submitApplication);
+router.post('/:id/withdraw', authorize('student', 'admin'), withdrawApplication);
+router.delete('/:id', authorize('student', 'admin'), deleteApplication);
 router.post('/:id/review', authorize('reviewer', 'admin'), reviewApplication);
 router.post('/:id/approve', authorize('approver', 'admin'), approveApplication);
 

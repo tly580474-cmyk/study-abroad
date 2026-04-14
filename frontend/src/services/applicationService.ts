@@ -55,6 +55,17 @@ export const applicationService = {
     return response.data.data;
   },
 
+  async withdrawApplication(id: string): Promise<Application> {
+    const response = await apiClient.post<{ success: boolean; data: Application }>(
+      `/applications/${id}/withdraw`
+    );
+    return response.data.data;
+  },
+
+  async deleteApplication(id: string): Promise<void> {
+    await apiClient.delete(`/applications/${id}`);
+  },
+
   async reviewApplication(
     id: string,
     action: 'approve' | 'reject' | 'request_resubmit',

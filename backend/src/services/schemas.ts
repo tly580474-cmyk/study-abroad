@@ -56,13 +56,11 @@ export const UpdateApplicationSchema = z.object({
 });
 
 export const CreateReviewSchema = z.object({
-  application_id: z.string().uuid(),
   action: ReviewActionSchema,
   comment: z.string().optional(),
 });
 
 export const CreateApprovalSchema = z.object({
-  application_id: z.string().uuid(),
   notes: z.string().optional(),
 });
 

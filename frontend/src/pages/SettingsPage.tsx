@@ -3,8 +3,9 @@ import { useAuthStore } from '../stores';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { AlertCircle, CheckCircle, Settings, User, Lock, Bell } from 'lucide-react';
+import { AlertCircle, CheckCircle, Settings, User, Lock, Bell, Database } from 'lucide-react';
 import apiClient from '../services/api';
+import { documentService } from '../services/documentService';
 
 export function SettingsPage() {
   const { user } = useAuthStore();
@@ -230,6 +231,45 @@ export function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {user?.role === 'admin' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              数据管理
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <p className="font-medium text-gray-900">修复文件名编码</p>
+                <p className="text-sm text-gray-500 mb-2">修复因上传时编码问题导致的乱码文件名</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    setLoading(true);
+                    setError('');
+                    setSuccess('');
+                    try {
+                      const msg = await documentService.fixNames();
+                      setSuccess(msg);
+                    } catch {
+                      setError('修复失败');
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                >
+                  执行修复
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

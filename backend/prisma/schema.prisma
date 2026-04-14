@@ -23,6 +23,12 @@ model User {
   reviewedApplications Application[] @relation("ReviewerApplications")
   reviews             Review[]
   approvals           Approval[]
+  schoolReviews       SchoolReview[]
+  forumPosts          ForumPost[]
+  postComments        PostComment[]
+  postLikes           PostLike[]
+  schoolPosts         SchoolPost[]
+  media               Media[]
 
   @@map("users")
 }
@@ -47,6 +53,9 @@ model School {
   updated_at  DateTime @updatedAt
 
   majors      Major[]
+  reviews     SchoolReview[]
+  forumPosts  ForumPost[]
+  schoolPosts SchoolPost[]
 
   @@map("schools")
 }
@@ -138,7 +147,7 @@ model Document {
   id             String         @id @default(uuid())
   application_id String
   name           String
-  url            String
+  data           Bytes
   size           Int
   mime_type      String
   status         DocumentStatus
@@ -156,4 +165,132 @@ enum DocumentStatus {
   invalid_format
   approved
   rejected
+}
+
+model SchoolReview {
+  id          String   @id @default(uuid())
+  school_id   String
+  user_id     String
+  rating      Int
+  content     String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  school School @relation(fields: [school_id], references: [id])
+  user   User   @relation(fields: [user_id], references: [id])
+
+  @@unique([school_id, user_id])
+  @@map("school_reviews")
+}
+
+model ForumPost {
+  id          String       @id @default(uuid())
+  user_id     String
+  school_id   String?
+  category    PostCategory
+  title       String
+  content     String
+  views       Int          @default(0)
+  is_pinned   Boolean      @default(false)
+  is_premium  Boolean      @default(false)
+  status      PostStatus   @default(published)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+
+  user     User           @relation(fields: [user_id], references: [id])
+  school   School?        @relation(fields: [school_id], references: [id])
+  comments PostComment[]
+  likes    PostLike[]
+
+  @@map("forum_posts")
+}
+
+enum PostCategory {
+  general
+  application
+  visa
+  scholarship
+  life
+  QnA
+}
+
+enum PostStatus {
+  draft
+  published
+  pending_review
+  deleted
+}
+
+model PostComment {
+  id         String   @id @default(uuid())
+  post_id    String
+  user_id    String
+  parent_id  String?
+  content    String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  post    ForumPost     @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [user_id], references: [id])
+  parent  PostComment?  @relation("CommentReplies", fields: [parent_id], references: [id])
+  replies PostComment[] @relation("CommentReplies")
+
+  @@map("post_comments")
+}
+
+model PostLike {
+  id         String   @id @default(uuid())
+  post_id    String
+  user_id    String
+  created_at DateTime @default(now())
+
+  post ForumPost @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  user User      @relation(fields: [user_id], references: [id])
+
+  @@unique([post_id, user_id])
+  @@map("post_likes")
+}
+
+model SchoolPost {
+  id          String        @id @default(uuid())
+  school_id   String
+  user_id     String
+  type        SchoolPostType
+  title       String
+  content     String
+  status      PostStatus    @default(published)
+  created_at  DateTime      @default(now())
+  updated_at  DateTime      @updatedAt
+
+  school School @relation(fields: [school_id], references: [id])
+  user   User   @relation(fields: [user_id], references: [id])
+
+  @@map("school_posts")
+}
+
+enum SchoolPostType {
+  announcement
+  news
+  admission
+}
+
+model Media {
+  id          String     @id @default(uuid())
+  user_id     String
+  type        MediaType
+  url         String
+  filename    String
+  size        Int
+  mime_type   String
+  metadata    Json?
+  created_at  DateTime   @default(now())
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@map("media")
+}
+
+enum MediaType {
+  image
+  video
 }

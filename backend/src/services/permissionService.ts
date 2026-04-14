@@ -19,7 +19,7 @@ export function buildResourceFilter(
 
     case 'reviewer':
       if (resource === 'application') {
-        return { reviewer_id: user.userId };
+        return {};
       }
       return {};
 

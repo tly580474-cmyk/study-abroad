@@ -68,9 +68,23 @@ export const updateSchool = asyncHandler(
 
 export const deleteSchool = asyncHandler(
   async (req: AuthRequest, res: Response): Promise<void> => {
-    await prisma.school.delete({
-      where: { id: req.params.id as string },
+    const schoolId = req.params.id as string;
+
+    const majorCount = await prisma.major.count({
+      where: { school_id: schoolId },
     });
-    res.json({ success: true });
+
+    if (majorCount > 0) {
+      res.status(400).json({
+        success: false,
+        error: `该学校下存在 ${majorCount} 个专业，无法删除。请先删除所有专业。`,
+      });
+      return;
+    }
+
+    await prisma.school.delete({
+      where: { id: schoolId },
+    });
+    res.json({ success: true, message: '学校已删除' });
   }
 );

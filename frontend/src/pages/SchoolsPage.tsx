@@ -6,6 +6,11 @@ import { Button } from '../components/ui/Button';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
 import { AlertCircle, Building, Plus, Edit, Trash2, GraduationCap } from 'lucide-react';
+import apiClient from '../services/api';
+
+interface SchoolWithMajors extends School {
+  majors: Major[];
+}
 
 export function SchoolsPage() {
   const { user } = useAuthStore();
@@ -18,10 +23,10 @@ export function SchoolsPage() {
   const [majorsModalOpen, setMajorsModalOpen] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<SchoolWithMajors | null>(null);
   const [majors, setMajors] = useState<Major[]>([]);
-
-  interface SchoolWithMajors extends School {
-    majors: Major[];
-  }
+  const [majorForm, setMajorForm] = useState({ name: '', quota: '', tuition: '', requirements: '' });
+  const [editingMajor, setEditingMajor] = useState<Major | null>(null);
+  const [majorModalOpen, setMajorModalOpen] = useState(false);
+  const [majorSaving, setMajorSaving] = useState(false);
 
   useEffect(() => {
     loadSchools();
@@ -42,34 +47,29 @@ export function SchoolsPage() {
   const handleSaveSchool = async () => {
     try {
       if (editingSchool) {
-        await fetch(`/api/schools/${editingSchool.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(schoolForm),
-        });
+        await apiClient.put(`/schools/${editingSchool.id}`, schoolForm);
       } else {
-        await fetch('/api/schools', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(schoolForm),
-        });
+        await apiClient.post('/schools', schoolForm);
       }
       setIsModalOpen(false);
       setEditingSchool(null);
       setSchoolForm({ name: '', country: '', city: '', description: '' });
       loadSchools();
-    } catch {
-      setError(editingSchool ? '更新学校失败' : '创建学校失败');
+    } catch (err: any) {
+      setError(err?.response?.data?.error || (editingSchool ? '更新学校失败' : '创建学校失败'));
     }
   };
 
   const handleDeleteSchool = async (id: string) => {
-    if (!confirm('确定要删除这个学校吗？')) return;
+    const confirmed = window.confirm('确定要删除这个学校吗？');
+    if (!confirmed) {
+      return;
+    }
     try {
-      await fetch(`/api/schools/${id}`, { method: 'DELETE' });
+      await apiClient.delete(`/schools/${id}`);
       loadSchools();
-    } catch {
-      setError('删除学校失败');
+    } catch (err: any) {
+      alert(err?.response?.data?.error || '删除学校失败');
     }
   };
 
@@ -92,6 +92,69 @@ export function SchoolsPage() {
       setMajorsModalOpen(true);
     } catch {
       setError('加载专业列表失败');
+    }
+  };
+
+  const openAddMajorModal = () => {
+    setEditingMajor(null);
+    setMajorForm({ name: '', quota: '', tuition: '', requirements: '' });
+    setMajorModalOpen(true);
+  };
+
+  const openEditMajorModal = (major: Major) => {
+    setEditingMajor(major);
+    setMajorForm({
+      name: major.name,
+      quota: major.quota.toString(),
+      tuition: Number(major.tuition).toString(),
+      requirements: major.requirements || '',
+    });
+    setMajorModalOpen(true);
+  };
+
+  const handleSaveMajor = async () => {
+    if (!selectedSchool) return;
+    setMajorSaving(true);
+    try {
+      if (editingMajor) {
+        await apiClient.put(`/majors/${editingMajor.id}`, {
+          name: majorForm.name,
+          quota: parseInt(majorForm.quota) || 0,
+          tuition: parseFloat(majorForm.tuition) || 0,
+          requirements: majorForm.requirements || undefined,
+        });
+      } else {
+        await apiClient.post('/majors', {
+          school_id: selectedSchool.id,
+          name: majorForm.name,
+          quota: parseInt(majorForm.quota) || 0,
+          tuition: parseFloat(majorForm.tuition) || 0,
+          requirements: majorForm.requirements || undefined,
+        });
+      }
+      setMajorModalOpen(false);
+      const data = await schoolService.getSchoolWithMajors(selectedSchool.id);
+      setMajors(data.majors || []);
+    } catch (err: any) {
+      alert(err?.response?.data?.error || '保存失败');
+    } finally {
+      setMajorSaving(false);
+    }
+  };
+
+  const handleDeleteMajor = async (id: string) => {
+    const confirmed = window.confirm('确定要删除这个专业吗？');
+    if (!confirmed) {
+      return;
+    }
+    try {
+      await apiClient.delete(`/majors/${id}`);
+      if (selectedSchool) {
+        const data = await schoolService.getSchoolWithMajors(selectedSchool.id);
+        setMajors(data.majors || []);
+      }
+    } catch (err: any) {
+      alert(err?.response?.data?.error || '删除失败');
     }
   };
 
@@ -236,15 +299,21 @@ export function SchoolsPage() {
       </Modal>
 
       <Modal isOpen={majorsModalOpen} onClose={() => setMajorsModalOpen(false)}>
-        <ModalHeader>{selectedSchool?.name} - 专业管理</ModalHeader>
+        <ModalHeader>
+          <span>{selectedSchool?.name} - 专业管理</span>
+          <Button size="sm" onClick={openAddMajorModal}>
+            <Plus className="h-4 w-4 mr-1" />
+            添加专业
+          </Button>
+        </ModalHeader>
         <ModalBody>
           {majors.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">暂无专业数据</div>
+            <div className="text-center py-8 text-gray-500">暂无专业数据，点击上方添加专业</div>
           ) : (
             <div className="space-y-3">
               {majors.map((major) => (
                 <div key={major.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div>
+                  <div className="flex-1">
                     <p className="font-medium text-gray-900">{major.name}</p>
                     <p className="text-sm text-gray-500">
                       学费: ${Number(major.tuition)}/年 | 名额: {major.enrolled}/{major.quota}
@@ -253,9 +322,17 @@ export function SchoolsPage() {
                       <p className="text-sm text-gray-500 mt-1">要求: {major.requirements}</p>
                     )}
                   </div>
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${major.enrolled >= major.quota ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                    {major.enrolled >= major.quota ? '已满' : '有名额'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${major.enrolled >= major.quota ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                      {major.enrolled >= major.quota ? '已满' : '有名额'}
+                    </span>
+                    <Button type="button" variant="outline" size="sm" onClick={() => openEditMajorModal(major)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => handleDeleteMajor(major.id)} className="text-red-600 hover:bg-red-50">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -263,6 +340,58 @@ export function SchoolsPage() {
         </ModalBody>
         <ModalFooter>
           <Button variant="outline" onClick={() => setMajorsModalOpen(false)}>关闭</Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal isOpen={majorModalOpen} onClose={() => setMajorModalOpen(false)}>
+        <ModalHeader>{editingMajor ? '编辑专业' : '添加专业'}</ModalHeader>
+        <ModalBody>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">专业名称</label>
+              <Input
+                value={majorForm.name}
+                onChange={(e) => setMajorForm({ ...majorForm, name: e.target.value })}
+                placeholder="请输入专业名称"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">招生名额</label>
+                <Input
+                  type="number"
+                  value={majorForm.quota}
+                  onChange={(e) => setMajorForm({ ...majorForm, quota: e.target.value })}
+                  placeholder="请输入招生名额"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">学费(美元/年)</label>
+                <Input
+                  type="number"
+                  value={majorForm.tuition}
+                  onChange={(e) => setMajorForm({ ...majorForm, tuition: e.target.value })}
+                  placeholder="请输入学费"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">招生要求</label>
+              <textarea
+                value={majorForm.requirements}
+                onChange={(e) => setMajorForm({ ...majorForm, requirements: e.target.value })}
+                placeholder="请输入招生要求"
+                className="flex w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                rows={3}
+              />
+            </div>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button type="button" variant="outline" onClick={() => setMajorModalOpen(false)}>取消</Button>
+          <Button type="button" onClick={handleSaveMajor} disabled={majorSaving}>
+            {majorSaving ? '保存中...' : '保存'}
+          </Button>
         </ModalFooter>
       </Modal>
     </div>
