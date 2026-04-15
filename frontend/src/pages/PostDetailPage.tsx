@@ -63,7 +63,7 @@ export function PostDetailPage() {
         setPost({
           ...post,
           _count: {
-            ...post._count,
+            comments: post._count?.comments || 0,
             likes: (post._count?.likes || 0) + (result.liked ? 1 : -1),
           },
         });

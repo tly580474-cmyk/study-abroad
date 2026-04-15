@@ -89,7 +89,6 @@ export function AnalyticsPage() {
 
         const date = new Date(app.created_at);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        const monthLabel = `${date.getMonth() + 1}月`;
 
         if (!monthlyMap[monthKey]) {
           monthlyMap[monthKey] = { total: 0, approved: 0, rejected: 0 };

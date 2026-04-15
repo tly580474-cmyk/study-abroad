@@ -79,7 +79,12 @@ export function RichTextEditor({ content, onChange, placeholder = '输入内容.
 
   const handleVideoUpload = useCallback(() => {
     if (videoUrl && editor) {
-      editor.chain().focus().setVideo({ src: videoUrl }).run();
+      const videoId = extractYoutubeId(videoUrl);
+      if (videoId) {
+        editor.chain().focus().setYoutubeVideo({ src: `https://www.youtube.com/watch?v=${videoId}` }).run();
+      } else {
+        editor.chain().focus().setYoutubeVideo({ src: videoUrl }).run();
+      }
       setVideoUrl('');
       setShowVideoModal(false);
     }

@@ -13,6 +13,7 @@ model User {
   password        String
   role            Role
   email           String?
+  email_verified  Boolean  @default(false)
   phone           String?
   school_id       String?
   managed_schools String[]
@@ -293,4 +294,22 @@ model Media {
 enum MediaType {
   image
   video
+}
+
+model EmailVerification {
+  id         String            @id @default(uuid())
+  email      String
+  code       String
+  type       VerificationType
+  expires_at DateTime
+  used       Boolean           @default(false)
+  created_at DateTime         @default(now())
+
+  @@index([email, type])
+  @@map("email_verifications")
+}
+
+enum VerificationType {
+  REGISTER
+  RESET_PASSWORD
 }

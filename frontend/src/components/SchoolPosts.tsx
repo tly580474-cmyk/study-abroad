@@ -1,10 +1,10 @@
+import { Edit, Trash2, Megaphone, Newspaper, GraduationCap } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '../components/ui/Modal';
 import { schoolPostService, type SchoolPost } from '../services/schoolPostService';
 import { useAuthStore } from '../stores';
-import { Plus, Edit, Trash2, Megaphone, Newspaper, GraduationCap } from 'lucide-react';
 
 const TYPE_LABELS: Record<string, string> = {
   announcement: '官方公告',

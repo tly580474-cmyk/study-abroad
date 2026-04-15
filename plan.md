@@ -70,7 +70,7 @@
 - [x] 基于RBAC的权限控制（角色-权限关联）
 - [x] **数据行级权限控制**（见5.8）
 - [x] 角色管理与权限分配
-- [ ] 操作审计日志
+- [ ] 操作审计日志 ⏳
 
 ### 5.2 学生模块
 
@@ -105,14 +105,14 @@
 - [x] 申请数据统计
 - [x] 各阶段通过率分析
 - [x] 学校专业热度分析
-- [ ] 数据报表导出
+- [ ] 数据报表导出 ⏳
 
 ### 5.7 系统管理模块
 
 - [x] 用户账号管理
-- [ ] 角色权限配置
+- [ ] 角色权限配置 ⏳
 - [x] 系统参数配置
-- [ ] 数据备份与恢复
+- [ ] 数据备份与恢复 ⏳
 
 ### 5.8 数据行级权限控制
 
@@ -398,10 +398,394 @@ async function uploadVideo(req, res) {
 | Phase 3 | 前端页面开发(论坛+评价+富文本编辑器) | ✅ 已完成 | Phase 2 |
 | Phase 4 | 高级功能(审核+通知) | ⏳ 待开发 | Phase 3 |
 | Phase 5 | 富文本编辑器集成(图片/视频/YouTube) | ✅ 已完成 | Phase 3 |
+| Phase 6 | 邮箱验证码注册 | ⏳ 待开发 | Phase 1 |
 
-**当前进度: Phase 5 完成，Phase 4 待开发**
+**当前进度: Phase 5 完成，Phase 6 待开发**
 
-#### 5.9.6 安全风险与避雷设计
+#### 5.9.6 邮箱验证码注册技术方案
+
+##### 6.1 功能概述
+
+为增强账号注册安全性，防止恶意注册和机器人攻击，引入邮箱验证码注册机制。用户需填写邮箱地址并通过验证码验证后才能完成注册。
+
+##### 6.2 业务流程
+
+```
+[注册表单] → [填写邮箱] → [发送验证码] → [填写验证码] → [验证通过] → [注册成功]
+                                         ↓
+                                    [验证码错误] → [重新输入验证码]
+                                         ↓
+                                    [验证码过期] → [重新发送验证码]
+```
+
+##### 6.3 技术方案
+
+###### 6.3.1 数据库模型扩展
+
+```prisma
+model EmailVerification {
+  id          String   @id @default(uuid())
+  email       String
+  code        String   // 6位数字验证码
+  expires_at  DateTime // 过期时间 (10分钟)
+  type        VerificationType // 注册验证码 / 找回密码验证码
+  used        Boolean  @default(false) // 是否已使用
+  created_at  DateTime @default(now())
+
+  @@index([email, type])
+  @@map("email_verifications")
+}
+
+enum VerificationType {
+  REGISTER
+  RESET_PASSWORD
+}
+```
+
+###### 6.3.2 用户模型调整
+
+```prisma
+model User {
+  // ... existing fields
+  email       String?   // 注册时填写
+  email_verified Boolean @default(false) // 邮箱是否已验证
+  // ... existing relations
+}
+```
+
+###### 6.3.3 验证码服务
+
+```typescript
+// services/emailService.ts
+import nodemailer from 'nodemailer';
+import crypto from 'crypto';
+
+const VERIFICATION_CODE_EXPIRY = 10 * 60 * 1000; // 10分钟
+const VERIFICATION_CODE_LENGTH = 6;
+
+// 生成6位数字验证码
+function generateCode(): string {
+  return crypto.randomInt(100000, 999999).toString();
+}
+
+// 发送验证码邮件
+async function sendVerificationEmail(email: string, code: string): Promise<void> {
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+
+  await transporter.sendMail({
+    from: `"留学管理系统" <${process.env.SMTP_USER}>`,
+    to: email,
+    subject: '【留学管理系统】邮箱验证码',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">邮箱验证</h2>
+        <p>您好，您正在注册留学管理系统账号。</p>
+        <p style="font-size: 24px; font-weight: bold; color: #0066cc;">
+          您的验证码是：${code}
+        </p>
+        <p style="color: #666; font-size: 14px;">
+          验证码将在 ${VERIFICATION_CODE_EXPIRY / 60000} 分钟后过期。
+        </p>
+        <p style="color: #999; font-size: 12px;">
+          如果您没有进行此操作，请忽略此邮件。
+        </p>
+      </div>
+    `,
+  });
+}
+```
+
+###### 6.3.4 API 接口设计
+
+| 接口 | 方法 | 说明 | 请求体 |
+|------|------|------|--------|
+| `/api/auth/send-code` | POST | 发送验证码 | `{ email: string, type: 'REGISTER' \| 'RESET_PASSWORD' }` |
+| `/api/auth/verify-code` | POST | 验证验证码 | `{ email: string, code: string, type: string }` |
+| `/api/auth/register` | POST | 注册(需验证) | `{ username, password, email, code }` |
+
+###### 6.3.5 发送验证码接口
+
+```typescript
+// controllers/authController.ts
+async function sendVerificationCode(req, res) {
+  const { email, type } = req.body;
+
+  // 1. 校验邮箱格式
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ error: '邮箱格式不正确' });
+  }
+
+  // 2. 频率限制：同一邮箱5分钟内只能发送3次
+  const recentCodes = await prisma.emailVerification.findMany({
+    where: {
+      email,
+      type,
+      created_at: { gte: new Date(Date.now() - 5 * 60 * 1000) },
+    },
+    orderBy: { created_at: 'desc' },
+  });
+
+  if (recentCodes.length >= 3) {
+    return res.status(429).json({
+      error: '发送过于频繁，请稍后再试',
+      retryAfter: 300 - Math.floor((Date.now() - recentCodes[0].created_at.getTime()) / 1000)
+    });
+  }
+
+  // 3. 生成验证码
+  const code = generateCode();
+  const expires_at = new Date(Date.now() + VERIFICATION_CODE_EXPIRY);
+
+  // 4. 存储验证码（软删除旧验证码）
+  await prisma.emailVerification.updateMany({
+    where: { email, type, used: false },
+    data: { used: true },
+  });
+
+  await prisma.emailVerification.create({
+    data: { email, code, expires_at, type },
+  });
+
+  // 5. 发送邮件
+  try {
+    await sendVerificationEmail(email, code);
+    res.json({ message: '验证码已发送', expiresIn: VERIFICATION_CODE_EXPIRY / 1000 });
+  } catch (error) {
+    console.error('邮件发送失败:', error);
+    res.status(500).json({ error: '邮件发送失败，请稍后重试' });
+  }
+}
+```
+
+###### 6.3.6 注册接口(带验证码)
+
+```typescript
+async function register(req, res) {
+  const { username, password, email, code } = req.body;
+
+  // 1. 参数校验
+  if (!username || !password || !email || !code) {
+    return res.status(400).json({ error: '所有字段均为必填' });
+  }
+
+  // 2. 校验验证码
+  const verification = await prisma.emailVerification.findFirst({
+    where: {
+      email,
+      code,
+      type: 'REGISTER',
+      used: false,
+      expires_at: { gt: new Date() },
+    },
+    orderBy: { created_at: 'desc' },
+  });
+
+  if (!verification) {
+    return res.status(400).json({ error: '验证码错误或已过期' });
+  }
+
+  // 3. 标记验证码已使用
+  await prisma.emailVerification.update({
+    where: { id: verification.id },
+    data: { used: true },
+  });
+
+  // 4. 检查用户名唯一性
+  const existingUser = await prisma.user.findUnique({ where: { username } });
+  if (existingUser) {
+    return res.status(400).json({ error: '用户名已被注册' });
+  }
+
+  // 5. 检查邮箱唯一性
+  const existingEmail = await prisma.user.findFirst({ where: { email } });
+  if (existingEmail) {
+    return res.status(400).json({ error: '该邮箱已被注册' });
+  }
+
+  // 6. 创建用户
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const user = await prisma.user.create({
+    data: {
+      username,
+      password: hashedPassword,
+      email,
+      email_verified: true,
+      role: 'student',
+    },
+  });
+
+  // 7. 生成JWT
+  const token = generateToken(user);
+
+  res.status(201).json({ user: sanitizeUser(user), token });
+}
+```
+
+##### 6.4 前端实现
+
+###### 6.4.1 注册表单组件
+
+```typescript
+// components/RegisterForm.tsx
+interface RegisterFormState {
+  username: string;
+  password: string;
+  confirmPassword: string;
+  email: string;
+  code: string;
+  step: 'form' | 'verify'; // 表单步骤
+  countdown: number; // 倒计时
+}
+
+function RegisterForm() {
+  const [state, setState] = useState<RegisterFormState>({
+    username: '',
+    password: '',
+    confirmPassword: '',
+    email: '',
+    code: '',
+    step: 'form',
+    countdown: 0,
+  });
+
+  // 发送验证码
+  const handleSendCode = async () => {
+    if (!state.email) {
+      toast.error('请输入邮箱');
+      return;
+    }
+
+    const response = await authService.sendCode(state.email, 'REGISTER');
+    if (response.success) {
+      setState(s => ({ ...s, step: 'verify', countdown: 60 }));
+      startCountdown();
+      toast.success('验证码已发送');
+    }
+  };
+
+  // 注册提交
+  const handleSubmit = async () => {
+    if (state.password !== state.confirmPassword) {
+      toast.error('两次密码不一致');
+      return;
+    }
+
+    const response = await authService.register({
+      username: state.username,
+      password: state.password,
+      email: state.email,
+      code: state.code,
+    });
+
+    if (response.success) {
+      navigate('/login');
+      toast.success('注册成功');
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {state.step === 'form' ? (
+        <>
+          <Input
+            label="用户名"
+            value={state.username}
+            onChange={e => setState(s => ({ ...s, username: e.target.value }))}
+          />
+          <Input
+            label="密码"
+            type="password"
+            value={state.password}
+            onChange={e => setState(s => ({ ...s, password: e.target.value }))}
+          />
+          <Input
+            label="确认密码"
+            type="password"
+            value={state.confirmPassword}
+            onChange={e => setState(s => ({ ...s, confirmPassword: e.target.value }))}
+          />
+          <div className="flex gap-2">
+            <Input
+              label="邮箱"
+              type="email"
+              value={state.email}
+              onChange={e => setState(s => ({ ...s, email: e.target.value }))}
+              className="flex-1"
+            />
+            <Button
+              onClick={handleSendCode}
+              disabled={state.countdown > 0}
+              className="mt-6"
+            >
+              {state.countdown > 0 ? `${state.countdown}秒` : '获取验证码'}
+            </Button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="text-sm text-gray-600">
+            验证码已发送至：{state.email}
+          </p>
+          <Input
+            label="验证码"
+            value={state.code}
+            onChange={e => setState(s => ({ ...s, code: e.target.value }))}
+            maxLength={6}
+            placeholder="请输入6位验证码"
+          />
+          <Button variant="link" onClick={handleSendCode}>
+            重新获取验证码
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}
+```
+
+##### 6.5 安全措施
+
+| 安全措施 | 说明 |
+|----------|------|
+| 验证码格式 | 6位纯数字，难以暴力猜测 |
+| 有效期控制 | 验证码10分钟后自动失效 |
+| 频率限制 | 同一邮箱5分钟内最多发送3次 |
+| 一次性使用 | 验证码验证后立即标记为已使用 |
+| 邮箱唯一性 | 同一邮箱只能注册一个账号 |
+| 密码强度 | 密码至少8位，包含大小写字母和数字 |
+| 防暴力机制 | 连续5次验证失败，锁定该邮箱1小时 |
+
+##### 6.6 环境变量配置
+
+```bash
+# .env
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=noreply@example.com
+SMTP_PASS=your-smtp-password
+```
+
+##### 6.7 开发任务清单
+
+| 任务 | 优先级 | 状态 |
+|------|--------|------|
+| 数据库模型扩展 | 高 | ⏳ |
+| 邮件服务开发 | 高 | ⏳ |
+| 发送验证码API | 高 | ⏳ |
+| 验证验证码API | 高 | ⏳ |
+| 注册接口改造 | 高 | ⏳ |
+| 前端注册表单 | 高 | ⏳ |
+| 单元测试 | 中 | ⏳ |
+
+#### 5.9.7 安全风险与避雷设计
 
 ##### 雷点一：评价权限的"逻辑后门"
 
