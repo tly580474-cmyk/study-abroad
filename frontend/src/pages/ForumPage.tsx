@@ -4,7 +4,7 @@ import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { forumService, type ForumPost } from '../services/forumService';
 import { useAuthStore } from '../stores';
-import { Plus, MessageCircle, Heart, Eye, Pin, Search } from 'lucide-react';
+import { Plus, MessageCircle, Heart, Eye, Pin, Search, Star } from 'lucide-react';
 
 const CATEGORY_LABELS: Record<string, string> = {
   general: '综合讨论',
@@ -139,6 +139,11 @@ export function ForumPage() {
                       {post.is_pinned && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded">
                           <Pin className="w-3 h-3" /> 置顶
+                        </span>
+                      )}
+                      {post.is_premium && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded">
+                          <Star className="w-3 h-3" /> 精华
                         </span>
                       )}
                       <span className={`px-2 py-0.5 text-xs rounded ${CATEGORY_COLORS[post.category]}`}>

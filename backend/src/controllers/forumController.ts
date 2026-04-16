@@ -304,6 +304,73 @@ export const deleteComment = asyncHandler(
   }
 );
 
+export const togglePin = asyncHandler(
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const postId = req.params.id as string;
+    const user = req.user!;
+
+    if (!['school_admin', 'admin'].includes(user.role)) {
+      res.status(403).json({ success: false, error: '无权置顶帖子' });
+      return;
+    }
+
+    const post = await prisma.forumPost.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      res.status(404).json({ success: false, error: '帖子不存在' });
+      return;
+    }
+
+    if (user.role === 'school_admin' && post.school_id !== user.school_id) {
+      res.status(403).json({ success: false, error: '无权置顶此帖子' });
+      return;
+    }
+
+    const updatedPost = await prisma.forumPost.update({
+      where: { id: postId },
+      data: { is_pinned: !post.is_pinned },
+    });
+
+    res.json({
+      success: true,
+      data: { is_pinned: updatedPost.is_pinned },
+    });
+  }
+);
+
+export const toggleFeatured = asyncHandler(
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const postId = req.params.id as string;
+    const user = req.user!;
+
+    if (user.role !== 'admin') {
+      res.status(403).json({ success: false, error: '无权设置精华帖' });
+      return;
+    }
+
+    const post = await prisma.forumPost.findUnique({
+      where: { id: postId },
+    });
+
+    if (!post) {
+      res.status(404).json({ success: false, error: '帖子不存在' });
+      return;
+    }
+
+    const updatedPost = await prisma.forumPost.update({
+      where: { id: postId },
+      data: { is_premium: !post.is_premium },
+    });
+
+    res.json({
+      success: true,
+      data: { is_premium: updatedPost.is_premium },
+    });
+  }
+);
+
 export const getMyPosts = asyncHandler(
   async (req: AuthRequest, res: Response): Promise<void> => {
     const user = req.user!;

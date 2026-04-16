@@ -4,7 +4,7 @@ import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { forumService, type ForumPost, type PostComment } from '../services/forumService';
 import { useAuthStore } from '../stores';
-import { ArrowLeft, Heart, MessageCircle, Share2, Edit, Trash2, Send } from 'lucide-react';
+import { ArrowLeft, Heart, MessageCircle, Share2, Edit, Trash2, Send, Pin, Star } from 'lucide-react';
 
 const CATEGORY_LABELS: Record<string, string> = {
   general: '综合讨论',
@@ -99,6 +99,31 @@ export function PostDetailPage() {
     }
   };
 
+  const handleTogglePin = async () => {
+    try {
+      const result = await forumService.togglePin(id!);
+      if (post) {
+        setPost({ ...post, is_pinned: result.is_pinned });
+      }
+    } catch (error) {
+      console.error('Failed to toggle pin:', error);
+    }
+  };
+
+  const handleToggleFeatured = async () => {
+    try {
+      const result = await forumService.toggleFeatured(id!);
+      if (post) {
+        setPost({ ...post, is_premium: result.is_premium });
+      }
+    } catch (error) {
+      console.error('Failed to toggle featured:', error);
+    }
+  };
+
+  const canPin = user && ['school_admin', 'admin'].includes(user.role);
+  const canFeature = user && user.role === 'admin';
+
   if (loading) {
     return (
       <div className="p-6">
@@ -134,7 +159,14 @@ export function PostDetailPage() {
               {CATEGORY_LABELS[post.category]}
             </span>
             {post.is_pinned && (
-              <span className="px-2 py-1 bg-red-100 text-red-700 text-sm rounded">置顶</span>
+              <span className="px-2 py-1 bg-red-100 text-red-700 text-sm rounded flex items-center gap-1">
+                <Pin className="w-3 h-3" /> 置顶
+              </span>
+            )}
+            {post.is_premium && (
+              <span className="px-2 py-1 bg-amber-100 text-amber-700 text-sm rounded flex items-center gap-1">
+                <Star className="w-3 h-3" /> 精华
+              </span>
             )}
           </div>
 
@@ -179,6 +211,18 @@ export function PostDetailPage() {
             </span>
             {canEdit && (
               <div className="ml-auto flex gap-2">
+                {canPin && (
+                  <Button variant="outline" size="sm" onClick={handleTogglePin}>
+                    <Pin className={`w-4 h-4 mr-1 ${post.is_pinned ? 'fill-current text-red-500' : ''}`} />
+                    {post.is_pinned ? '取消置顶' : '置顶'}
+                  </Button>
+                )}
+                {canFeature && (
+                  <Button variant="outline" size="sm" onClick={handleToggleFeatured}>
+                    <Star className={`w-4 h-4 mr-1 ${post.is_premium ? 'fill-current text-amber-500' : ''}`} />
+                    {post.is_premium ? '取消精华' : '精华'}
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={() => navigate(`/forum/${id}/edit`)}>
                   <Edit className="w-4 h-4 mr-1" />
                   编辑

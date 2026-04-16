@@ -10,6 +10,8 @@ import {
   getComments,
   deleteComment,
   getMyPosts,
+  togglePin,
+  toggleFeatured,
 } from '../controllers/forumController.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 
@@ -25,5 +27,7 @@ router.post('/:id/like', authenticate, toggleLike);
 router.get('/:id/comments', getComments);
 router.post('/:id/comments', authenticate, addComment);
 router.delete('/comments/:commentId', authenticate, deleteComment);
+router.post('/:id/pin', authenticate, togglePin);
+router.post('/:id/featured', authenticate, toggleFeatured);
 
 export default router;

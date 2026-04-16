@@ -114,4 +114,14 @@ export const forumService = {
     const response = await apiClient.get('/forum/my', { params });
     return response.data;
   },
+
+  async togglePin(id: string): Promise<{ is_pinned: boolean }> {
+    const response = await apiClient.post(`/forum/${id}/pin`);
+    return response.data.data;
+  },
+
+  async toggleFeatured(id: string): Promise<{ is_premium: boolean }> {
+    const response = await apiClient.post(`/forum/${id}/featured`);
+    return response.data.data;
+  },
 };
