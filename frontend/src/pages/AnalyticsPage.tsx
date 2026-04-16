@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../stores';
 import { applicationService } from '../services/applicationService';
+import { exportService } from '../services/exportService';
 import type { ApplicationStatus } from '../types';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
-import { AlertCircle, TrendingUp, CheckCircle, Clock, XCircle, FileText, X } from 'lucide-react';
+import { Button } from '../components/ui/Button';
+import { AlertCircle, TrendingUp, CheckCircle, Clock, XCircle, FileText, X, FileDown } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -329,9 +331,18 @@ export function AnalyticsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">数据分析</h1>
-        <p className="text-gray-500 mt-1">留学申请业务数据统计</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">数据分析</h1>
+          <p className="text-gray-500 mt-1">留学申请业务数据统计</p>
+        </div>
+        <Button
+          onClick={() => exportService.exportApplications()}
+          className="flex items-center gap-2"
+        >
+          <FileDown className="h-4 w-4" />
+          导出报表
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

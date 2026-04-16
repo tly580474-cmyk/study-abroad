@@ -203,13 +203,18 @@ export function ApplicationCreatePage() {
               </Button>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
-              <p className="font-medium mb-1">温馨提示：</p>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+              <p className="font-medium mb-2">📋 申请材料清单：</p>
               <ul className="list-disc list-inside space-y-1">
-                <li>创建申请后，需要上传申请材料才能提交</li>
-                <li>请前往申请详情页上传材料</li>
-                <li>材料上传完成后，点击"提交申请"按钮完成申请</li>
+                <li>学生姓名</li>
+                <li>在读学校</li>
+                <li>联系方式（email）</li>
+                <li>自荐材料</li>
+                <li>盖章的成绩表扫描件</li>
+                <li>申请学校及代号</li>
+                <li>申请专业及代号</li>
               </ul>
+              <p className="mt-3 text-amber-900">请在创建申请后，前往申请详情页上传以上材料。</p>
             </div>
           </form>
         </CardContent>

@@ -12,6 +12,7 @@ import reviewRoutes from './routes/reviewRoutes.js';
 import forumRoutes from './routes/forumRoutes.js';
 import schoolPostRoutes from './routes/schoolPostRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import exportRoutes from './routes/exportRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -31,6 +32,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/forum', forumRoutes);
 app.use('/api/school-posts', schoolPostRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/export', exportRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
