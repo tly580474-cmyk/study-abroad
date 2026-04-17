@@ -28,8 +28,34 @@ export const documentService = {
     return apiClient.delete(`/documents/${id}`).then(res => res.data);
   },
 
-  downloadDocument(id: string): string {
-    return `/api/documents/download/${id}`;
+  async downloadDocument(id: string, filename?: string): Promise<void> {
+    const token = localStorage.getItem('auth-storage');
+    const { state } = token ? JSON.parse(token) : { state: null };
+    const authToken = state?.token;
+
+    const response = await fetch(`/api/documents/download/${id}`, {
+      headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+      redirect: 'follow',
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+      throw new Error('下载失败');
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename || '下载文件';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   },
 
   previewDocument(id: string): Promise<{ name: string; mimeType: string; dataUrl: string }> {

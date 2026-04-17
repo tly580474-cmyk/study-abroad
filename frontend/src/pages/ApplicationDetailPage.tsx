@@ -20,7 +20,6 @@ import {
   MessageSquare,
   Upload,
   Trash2,
-  Download,
   Paperclip,
   Eye,
 } from 'lucide-react';
@@ -321,14 +320,6 @@ export function ApplicationDetailPage() {
                           >
                             <Eye className="h-4 w-4 text-gray-500" />
                           </button>
-                          <a
-                            href={documentService.downloadDocument(doc.id)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1 hover:bg-gray-200 rounded"
-                          >
-                            <Download className="h-4 w-4 text-gray-500" />
-                          </a>
                           {(user?.role === 'admin' || user?.id === application.student_id) && (
                             <button
                               onClick={() => handleDeleteDocument(doc.id)}
